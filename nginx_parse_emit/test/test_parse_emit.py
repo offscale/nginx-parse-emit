@@ -83,8 +83,7 @@ class TestParseEmit(TestCase):
 
     def test_server_proxy_merge(self):
         parsed = merge_into(self.parsed_server_block_no_rest, self.parsed_api_block, self.parsed_api_block)
-        self.assertEqual(dumps(parsed),
-                         '''server {
+        self.assertEqual('''server {
     # Emitted by nginx_parse_emit.emit.server_block
     server_name offscale.io;
     listen 443;
@@ -108,9 +107,8 @@ class TestParseEmit(TestCase):
         proxy_pass http://127.0.0.1:5000/awesome;
         proxy_redirect off;
     }
-}''')
-        self.assertEqual(parsed,
-                         [[['server'],
+}''', dumps(parsed))
+        self.assertEqual([[['server'],
                            [['# Emitted by nginx_parse_emit.emit.server_block', '\n'], ['server_name', 'offscale.io'],
                             ['listen', '443'], [['location', '/api0'], [['proxy_set_header', 'Host $http_host'],
                                                                         ['proxy_set_header', 'X-Real-IP $remote_addr'],
@@ -126,13 +124,13 @@ class TestParseEmit(TestCase):
                               ['proxy_set_header', 'X-Scheme $scheme'],
                               ['proxy_set_header', 'X-Forwarded-Proto $scheme'],
                               ['proxy_set_header', 'X-Forwarded-For $proxy_add_x_forwarded_for'],
-                              ['proxy_pass', 'http://127.0.0.1:5000/awesome'], ['proxy_redirect', 'off']]]]]])
+                              ['proxy_pass', 'http://127.0.0.1:5000/awesome'], ['proxy_redirect', 'off']]]]]],
+                         parsed)
 
     def test_upsert_by_location(self):
         # upsert_by_name('/api0', self.parsed_server_block_no_rest, self.parsed_api_block)
 
-        self.assertEqual(dumps(upsert_by_location('/api0', self.two_roots, self.parsed_api_block)),
-                         '''server {
+        self.assertEqual('''server {
     # Emitted by nginx_parse_emit.emit.server_block
     server_name offscale.io;
     listen 80;
@@ -151,12 +149,9 @@ server {
         proxy_pass http://127.0.0.1:5000/awesome;
         proxy_redirect off;
     }
-}''')
+}''', dumps(upsert_by_location('/api0', self.two_roots, self.parsed_api_block)))
 
-        self.assertEqual(dumps(upsert_by_location('/api0',
-                                                  merge_into(self.parsed_server_block_no_rest, self.parsed_api_block),
-                                                  self.parsed_api_block)),
-                         '''server {
+        self.assertEqual('''server {
     # Emitted by nginx_parse_emit.emit.server_block
     server_name offscale.io;
     listen 443;
@@ -170,12 +165,10 @@ server {
         proxy_pass http://127.0.0.1:5000/awesome;
         proxy_redirect off;
     }
-}''')
-        self.assertEqual(dumps(upsert_by_location('/api0',
-                                                  merge_into(self.parsed_server_block_no_rest, self.parsed_api_block),
-                                                  loads(
-                                                  api_proxy_block(location=self.location, proxy_pass='WRONG_DOMAIN')))),
-                         '''server {
+}''', dumps(upsert_by_location('/api0',
+                               merge_into(self.parsed_server_block_no_rest, self.parsed_api_block),
+                               self.parsed_api_block)))
+        self.assertEqual('''server {
     # Emitted by nginx_parse_emit.emit.server_block
     server_name offscale.io;
     listen 443;
@@ -189,7 +182,11 @@ server {
         proxy_pass WRONG_DOMAIN;
         proxy_redirect off;
     }
-}''')
+}''', dumps(upsert_by_location('/api0',
+                               merge_into(self.parsed_server_block_no_rest, self.parsed_api_block),
+                               loads(
+                                   api_proxy_block(location=self.location,
+                                                   proxy_pass='WRONG_DOMAIN')))))
 
 
 if __name__ == '__main__':
