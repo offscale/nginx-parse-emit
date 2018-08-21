@@ -1,8 +1,7 @@
 from copy import copy
+from itertools import imap, ifilterfalse
 from operator import itemgetter
 from string import Template
-
-from offutils import pp
 
 
 class DollarTemplate(Template):
@@ -19,5 +18,20 @@ def ensure_semicolon(s):  # type: (str) -> str or None
 
 def merge_into(parent_block, *child_blocks):
     parent_block = copy(parent_block)
-    parent_block[0][-1] += map(itemgetter(0), child_blocks)
+    parent_block[-1][-1] += map(itemgetter(0), child_blocks)
     return parent_block
+
+
+def upsert_by_location(location, parent_block, child_block):
+    parent_block = copy(parent_block)
+
+    parent_block = map(lambda block:
+                       list(imap(lambda subblock:
+                                 list(ifilterfalse(
+                                     lambda subsubblock: len(subsubblock) and len(subsubblock[0]) > 1 and
+                                                         subsubblock[0][1] == location,
+                                     subblock)),
+                                 block)),
+                       parent_block)
+
+    return merge_into(parent_block, child_block)

@@ -5,7 +5,7 @@ from unittest import TestCase, main as unittest_main
 from nginxparser import loads, dumps
 
 from nginx_parse_emit.emit import api_proxy_block, server_block
-from nginx_parse_emit.utils import merge_into
+from nginx_parse_emit.utils import merge_into, upsert_by_location
 
 
 class TestParseEmit(TestCase):
@@ -19,6 +19,30 @@ class TestParseEmit(TestCase):
         self.server_name = 'offscale.io'
         self.listen = '443'
         self.parsed_server_block_no_rest = loads(server_block(server_name=self.server_name, listen=self.listen))
+
+        self.two_roots = loads('''
+        server {
+    # Emitted by nginx_parse_emit.emit.server_block
+    server_name offscale.io;
+    listen 80;
+    }
+        
+        server {
+    # Emitted by nginx_parse_emit.emit.server_block
+    server_name offscale.io;
+    listen 443;
+ 
+    location /api0 {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_pass http://127.0.0.1:5000/awesome;
+        proxy_redirect off;
+    }
+} 
+        ''')
 
     def test_api_proxy_block(self):
         self.assertEqual(
@@ -103,6 +127,69 @@ class TestParseEmit(TestCase):
                               ['proxy_set_header', 'X-Forwarded-Proto $scheme'],
                               ['proxy_set_header', 'X-Forwarded-For $proxy_add_x_forwarded_for'],
                               ['proxy_pass', 'http://127.0.0.1:5000/awesome'], ['proxy_redirect', 'off']]]]]])
+
+    def test_upsert_by_location(self):
+        # upsert_by_name('/api0', self.parsed_server_block_no_rest, self.parsed_api_block)
+
+        self.assertEqual(dumps(upsert_by_location('/api0', self.two_roots, self.parsed_api_block)),
+                         '''server {
+    # Emitted by nginx_parse_emit.emit.server_block
+    server_name offscale.io;
+    listen 80;
+}
+server {
+    # Emitted by nginx_parse_emit.emit.server_block
+    server_name offscale.io;
+    listen 443;
+ 
+    location /api0 {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_pass http://127.0.0.1:5000/awesome;
+        proxy_redirect off;
+    }
+}''')
+
+        self.assertEqual(dumps(upsert_by_location('/api0',
+                                                  merge_into(self.parsed_server_block_no_rest, self.parsed_api_block),
+                                                  self.parsed_api_block)),
+                         '''server {
+    # Emitted by nginx_parse_emit.emit.server_block
+    server_name offscale.io;
+    listen 443;
+ 
+    location /api0 {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_pass http://127.0.0.1:5000/awesome;
+        proxy_redirect off;
+    }
+}''')
+        self.assertEqual(dumps(upsert_by_location('/api0',
+                                                  merge_into(self.parsed_server_block_no_rest, self.parsed_api_block),
+                                                  loads(
+                                                  api_proxy_block(location=self.location, proxy_pass='WRONG_DOMAIN')))),
+                         '''server {
+    # Emitted by nginx_parse_emit.emit.server_block
+    server_name offscale.io;
+    listen 443;
+ 
+    location /api0 {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_pass WRONG_DOMAIN;
+        proxy_redirect off;
+    }
+}''')
 
 
 if __name__ == '__main__':
