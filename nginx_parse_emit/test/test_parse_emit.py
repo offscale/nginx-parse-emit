@@ -4,8 +4,8 @@ from unittest import TestCase, main as unittest_main
 
 from nginxparser import loads, dumps
 
-from nginx_parse_emit.emit import api_proxy_block, server_block
-from nginx_parse_emit.utils import merge_into, upsert_by_location
+from nginx_parse_emit.emit import api_proxy_block, server_block, secure_attr
+from nginx_parse_emit.utils import merge_into, upsert_by_location, apply_attributes
 
 
 class TestParseEmit(TestCase):
@@ -187,6 +187,29 @@ server {
                                loads(
                                    api_proxy_block(location=self.location,
                                                    proxy_pass='WRONG_DOMAIN')))))
+
+    def test_attributes(self):
+        ssl_certificate = '/etc/letsencrypt/live/{server_name}/fullchain.pem'.format(server_name=self.server_name)
+        ssl_certificate_key = '/etc/letsencrypt/live/{server_name}/privkey.pem'.format(server_name=self.server_name)
+        aa = apply_attributes(self.parsed_server_block_no_rest, secure_attr(ssl_certificate, ssl_certificate_key))
+
+        self.assertEqual(aa, [[['server'],
+                               [['# Emitted by nginx_parse_emit.emit.server_block', '\n'],
+                                ['server_name', self.server_name],
+                                ['listen', self.listen],
+                                ['ssl', 'on'],
+                                ['ssl_certificate', ssl_certificate],
+                                ['ssl_certificate_key', ssl_certificate_key],
+                                ['fastcgi_param', 'HTTP_SCHEME         https']]]])
+        self.assertEqual(dumps(aa), '''server {
+    # Emitted by nginx_parse_emit.emit.server_block
+    server_name offscale.io;
+    listen 443;
+    ssl on;
+    ssl_certificate /etc/letsencrypt/live/offscale.io/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/offscale.io/privkey.pem;
+    fastcgi_param HTTP_SCHEME         https;
+}''')
 
 
 if __name__ == '__main__':

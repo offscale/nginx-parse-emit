@@ -12,8 +12,8 @@ def api_proxy_block(location, proxy_pass):  # type: (str, str) -> str
         proxy_set_header X-Scheme $scheme;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_pass $proxy_pass;
-        proxy_redirect off;
+        proxy_pass       $proxy_pass;
+        proxy_redirect   off;
     }''').safe_substitute(location=_prevent_slash(location),
                           proxy_pass=proxy_pass)
 
@@ -45,30 +45,50 @@ def autoindex_block(location, root):  # type: (str, str) -> str
                add_header 'Access-Control-Max-Age' 1728000;
                add_header 'Content-Type' 'text/plain; charset=utf-8';
                add_header 'Content-Length' 0;
-               return 204;
+               return     204;
             }
-            root $root;
-            autoindex on;
+            root                 $root;
+            autoindex            on;
             autoindex_exact_size off;
-            autoindex_format json;
-            autoindex_localtime on;
+            autoindex_format     json;
+            autoindex_localtime  on;
         ''').safe_substitute(location=_prevent_slash(location), root=root)
 
 
 def proxy_1_1_block(location, proxy_pass):  # type: (str, str) -> str
     return DollarTemplate('''location /$location {
-            proxy_pass $proxy_pass;
+            proxy_pass         $proxy_pass;
             proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
+            proxy_set_header   Upgrade $http_upgrade;
+            proxy_set_header   Connection "upgrade";
         }''').safe_substitute(location=_prevent_slash(location), proxy_pass=proxy_pass)
 
 
 def html5_block(location, root):  # type: (str, str) -> str
     return DollarTemplate('''location /$location {
-            try_files $uri$args $uri$args/ /index.html;
-            root   $root;
-            index  index.html index.htm;
+            try_files  $uri$args $uri$args/ /index.html;
+            root       $root;
+            index      index.html index.htm;
             add_header 'Cache-Control' 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0';
-            expires off;
+            expires    off;
         }''').safe_substitute(location=_prevent_slash(location), root=root)
+
+
+def redirect_block(server_name, port, redirect_to=None):  # type: (str, str, str or None) -> str
+    return DollarTemplate('''server {
+      server_name $server_name;
+      listen      $port;
+      return      301 $redirect_to;
+    }''').safe_substitute(server_name=server_name, port=port,
+                          redirect_to=redirect_to or 'https://$server_name$request_uri')
+
+
+def secure_attr(ssl_certificate, ssl_certificate_key, port=None):  # type: (str, str, str or None) -> str
+    return DollarTemplate('''listen $port;
+    ssl                 on;
+    ssl_certificate     $ssl_certificate;
+    ssl_certificate_key $ssl_certificate_key;
+    fastcgi_param       HTTPS               on;
+    fastcgi_param       HTTP_SCHEME         https;''').safe_substitute(port=port or 443,
+                                                                       ssl_certificate=ssl_certificate,
+                                                                       ssl_certificate_key=ssl_certificate_key)

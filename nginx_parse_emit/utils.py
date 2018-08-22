@@ -1,8 +1,10 @@
+from __future__ import print_function
+
 from copy import copy
 from itertools import imap, ifilterfalse
 from string import Template
 
-from nginxparser import loads
+from nginxparser import loads, dumps
 
 
 class DollarTemplate(Template):
@@ -30,6 +32,10 @@ def merge_into(parent_block, *child_blocks):  # type: (str or list, *list) -> li
     return parent_block
 
 
+def merge_into_str(parent_block, *child_blocks):  # type: (str or list, *list) -> str
+    return dumps(merge_into(parent_block, *child_blocks))
+
+
 def upsert_by_location(location, parent_block, child_block):  # type: (str, str or list, str or list) -> list
     return merge_into(remove_by_location(_copy_or_marshal(parent_block), location), child_block)
 
@@ -49,3 +55,25 @@ def remove_by_location(parent_block, location):  # type: (list, str) -> list
 
 def _prevent_slash(s):  # type: (str) -> str
     return s[1:] if s.startswith('/') else s
+
+
+def apply_attributes(block, attribute, append=True):  # type: (str or list, str or list, bool) -> list
+    block = _copy_or_marshal(block)
+    attribute = _copy_or_marshal(attribute)
+    if append:
+        block[0][1] += attribute
+
+        # TODO: Generalise these lines to a `remove_duplicates` or `remove_consecutive_duplicates` function
+        prev_key = None
+        subseq_removed = []
+        block[0][1].reverse()
+        for subblock in block[0][1]:
+            if prev_key is not None and prev_key == subblock[0]:
+                continue
+            subseq_removed.append(subblock)
+            prev_key = subblock[0]
+        subseq_removed.reverse()
+        block[0][1] = subseq_removed
+    else:
+        raise NotImplementedError()
+    return block
