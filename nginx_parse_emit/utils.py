@@ -57,23 +57,38 @@ def _prevent_slash(s):  # type: (str) -> str
     return s[1:] if s.startswith('/') else s
 
 
-def apply_attributes(block, attribute, append=True):  # type: (str or list, str or list, bool) -> list
+def apply_attributes(block, attribute, append=False):  # type: (str or list, str or list, bool) -> list
     block = _copy_or_marshal(block)
     attribute = _copy_or_marshal(attribute)
-    if append:
-        block[0][1] += attribute
 
-        # TODO: Generalise these lines to a `remove_duplicates` or `remove_consecutive_duplicates` function
-        prev_key = None
-        subseq_removed = []
-        block[0][1].reverse()
-        for subblock in block[0][1]:
-            if prev_key is not None and prev_key == subblock[0]:
-                continue
-            subseq_removed.append(subblock)
-            prev_key = subblock[0]
-        subseq_removed.reverse()
-        block[0][1] = subseq_removed
+    if append:
+        block[-1][-1] += attribute
     else:
-        raise NotImplementedError()
+        changed = False
+        for bid, _block in enumerate(block[-1]):
+            for sid, subblock in enumerate(_block):
+                if isinstance(subblock[0], list):
+                    block[-1][bid] = attribute + [block[-1][bid][sid]]
+                    changed = True
+                    break
+
+        if not changed:
+            block[-1][-1] += attribute
+
+    # TODO: Generalise these lines to a `remove_duplicates` or `remove_consecutive_duplicates` function
+
+    prev_key = None
+    subseq_removed = []
+    if not isinstance(block[0][1], list):
+        return block
+
+    block[0][1].reverse()
+    for subblock in block[0][1]:
+        if prev_key is not None and prev_key == subblock[0] and prev_key in ('server_name', 'listen'):
+            continue
+        subseq_removed.append(subblock)
+        prev_key = subblock[0]
+    subseq_removed.reverse()
+    block[0][1] = subseq_removed
+
     return block
