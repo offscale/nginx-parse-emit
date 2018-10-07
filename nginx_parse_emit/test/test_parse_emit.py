@@ -4,7 +4,7 @@ from unittest import TestCase, main as unittest_main
 
 from nginxparser import loads, dumps
 
-from nginx_parse_emit.emit import api_proxy_block, server_block, secure_attr
+from nginx_parse_emit.emit import api_proxy_block, server_block, secure_attr, redirect_block
 from nginx_parse_emit.utils import merge_into, upsert_by_location, apply_attributes
 
 
@@ -197,15 +197,15 @@ server {
         aa = apply_attributes(self.parsed_server_block_no_rest,
                               secure_attr(self.ssl_certificate, self.ssl_certificate_key))
         self.assertEqual([[['server'],
-                               [['# Emitted by nginx_parse_emit.emit.server_block',
-                                 '\n'],
-                                ['server_name', self.server_name],
-                                ['listen', self.listen],
-                                ['ssl', 'on'],
-                                ['ssl_certificate', self.ssl_certificate],
-                                ['ssl_certificate_key', self.ssl_certificate_key],
-                                ['fastcgi_param', 'HTTPS               on'],
-                                ['fastcgi_param', 'HTTP_SCHEME         https']]]],
+                           [['# Emitted by nginx_parse_emit.emit.server_block',
+                             '\n'],
+                            ['server_name', self.server_name],
+                            ['listen', self.listen],
+                            ['ssl', 'on'],
+                            ['ssl_certificate', self.ssl_certificate],
+                            ['ssl_certificate_key', self.ssl_certificate_key],
+                            ['fastcgi_param', 'HTTPS               on'],
+                            ['fastcgi_param', 'HTTP_SCHEME         https']]]],
                          aa)
         self.assertEqual(dumps(aa), '''server {
     # Emitted by nginx_parse_emit.emit.server_block
@@ -294,6 +294,20 @@ server {
         proxy_redirect off;
     }
 }''', dumps(aa))
+
+    def test_merge_roots(self):
+        server_name = 'foo'
+        self.assertEqual('''server {
+    server_name foo;
+    listen 80;
+    return 301 https://$server_name$request_uri;
+}
+server {
+    # Emitted by nginx_parse_emit.emit.server_block
+    server_name foo;
+    listen 443;
+}''', dumps(loads(redirect_block(server_name=server_name, port=80)) +
+            loads(server_block(server_name=server_name, listen=443))))
 
 
 if __name__ == '__main__':
