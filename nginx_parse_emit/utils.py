@@ -1,10 +1,15 @@
 from __future__ import print_function
 
+from cStringIO import StringIO
 from copy import copy
 from itertools import imap, ifilterfalse
+from os import remove
 from string import Template
+from tempfile import mkstemp
 
-from nginxparser import loads, dumps
+from fabric.contrib.files import exists
+from fabric.operations import get, put
+from nginxparser import loads, dumps, load
 
 
 class DollarTemplate(Template):
@@ -92,3 +97,20 @@ def apply_attributes(block, attribute, append=False):  # type: (str or list, str
     block[0][1] = subseq_removed
 
     return block
+
+
+def upsert_upload(new_conf, name='default', use_sudo=True):
+    conf_name = '/etc/nginx/sites-enabled/{nginx_conf}'.format(nginx_conf=name)
+    if not conf_name.endswith('.conf') and not exists(conf_name):
+        conf_name += '.conf'
+    # cStringIO.StringIO, StringIO.StringIO, TemporaryFile, SpooledTemporaryFile all failed :(
+    tempfile = mkstemp(name)[1]
+    get(remote_path=conf_name, local_path=tempfile, use_sudo=use_sudo)
+    with open(tempfile, 'rt') as f:
+        conf = load(f)
+    new_conf = new_conf(conf)
+    remove(tempfile)
+
+    sio = StringIO()
+    sio.write(dumps(new_conf))
+    return put(sio, conf_name, use_sudo=use_sudo)
