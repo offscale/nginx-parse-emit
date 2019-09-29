@@ -3,7 +3,7 @@ from __future__ import print_function
 from cStringIO import StringIO
 from copy import copy
 from itertools import imap, ifilterfalse
-from os import remove
+from os import remove, path
 from string import Template
 from tempfile import mkstemp
 
@@ -114,3 +114,15 @@ def upsert_upload(new_conf, name='default', use_sudo=True):
     sio = StringIO()
     sio.write(dumps(new_conf))
     return put(sio, conf_name, use_sudo=use_sudo)
+
+
+def ensure_nginxparser_instance(conf_file):
+    if isinstance(conf_file, list):
+        return conf_file
+    elif hasattr(conf_file, 'read'):
+        return load(conf_file)
+    elif path.isfile(conf_file):
+        with open(conf_file, 'rt') as f:
+            return load(f)
+    else:
+        return loads(conf_file)

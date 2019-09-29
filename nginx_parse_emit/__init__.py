@@ -12,7 +12,7 @@ __version__ = '0.0.6'
 
 def get_logger(name=None):  # type: (str or None) -> logging.Logger
     with open(path.join(path.dirname(__file__), '_data', 'logging.yml'), 'rt') as f:
-        data = yaml.load(f)
+        data = yaml.load(f, Loader=yaml.SafeLoader)
     _dictConfig(data)
     return logging.getLogger(name=name)
 

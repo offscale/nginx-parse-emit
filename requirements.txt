@@ -1,1 +1,1 @@
-https://api.github.com/repos/XenosLu/nginxparser/zipball#egg=nginxparser
+https://api.github.com/repos/fatiherikli/nginxparser/zipball#egg=nginxparser

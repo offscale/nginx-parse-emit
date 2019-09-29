@@ -1,6 +1,6 @@
 from sys import modules, _getframe
 
-from nginx_parse_emit.utils import DollarTemplate, ensure_semicolon, _prevent_slash
+from nginx_parse_emit.utils import DollarTemplate, ensure_semicolon, _prevent_slash, ensure_nginxparser_instance
 
 _default_comment = 'Emitted by {}'.format(modules[__name__].__name__)
 
@@ -92,3 +92,24 @@ def secure_attr(ssl_certificate, ssl_certificate_key, port=None):  # type: (str,
     fastcgi_param       HTTP_SCHEME         https;''').safe_substitute(port=port or 443,
                                                                        ssl_certificate=ssl_certificate,
                                                                        ssl_certificate_key=ssl_certificate_key)
+
+
+def upsert_ssl_cert_to_443_block(conf_file, ssl_certificate, ssl_certificate_key):  # type: (str, str, str) -> []
+    conf = ensure_nginxparser_instance(conf_file)
+
+    for i, tier in enumerate(conf):
+        for j, statement in enumerate(tier):
+            updated = False
+            if ['listen', '443'] in statement:
+                for k, stm in enumerate(statement):
+                    if conf[i][j][k][0] == 'ssl_certificate':
+                        conf[i][j][k][1] = ssl_certificate
+                        updated = True
+                    elif conf[i][j][k][0] == 'ssl_certificate_key':
+                        conf[i][j][k][1] = ssl_certificate_key
+                        updated = True
+                if not updated and 'ssl_certificate' not in conf[i][j]:
+                    conf[i][j].extend([['ssl_certificate', ssl_certificate],
+                                       ['ssl_certificate_key', ssl_certificate_key]])
+
+    return conf

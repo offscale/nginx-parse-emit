@@ -1,9 +1,10 @@
-from setuptools import setup, find_packages
-from os import path, listdir
+from ast import parse
 from functools import partial
 from itertools import imap, ifilter
-from ast import parse
+from os import path, listdir
+
 from distutils.sysconfig import get_python_lib
+from setuptools import setup, find_packages
 
 if __name__ == '__main__':
     package_name = 'nginx_parse_emit'
@@ -17,6 +18,7 @@ if __name__ == '__main__':
     to_funcs = lambda *paths: (partial(path.join, path.dirname(__file__), package_name, *paths),
                                partial(path.join, get_python_lib(prefix=''), package_name, *paths))
     _data_join, _data_install_dir = to_funcs('_data')
+    configs_join, configs_install_dir = to_funcs('configs')
 
     setup(
         name=package_name,
@@ -39,6 +41,7 @@ if __name__ == '__main__':
         packages=find_packages(),
         package_dir={package_name: package_name},
         data_files=[
-            (_data_install_dir(), map(_data_join, listdir(_data_join())))
+            (_data_install_dir(), map(_data_join, listdir(_data_join()))),
+            (configs_install_dir(), map(configs_join, listdir(configs_join())))
         ]
     )
