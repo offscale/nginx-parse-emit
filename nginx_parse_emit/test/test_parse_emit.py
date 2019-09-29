@@ -87,7 +87,8 @@ class TestParseEmit(TestCase):
         )
 
     def test_server_proxy_merge(self):
-        parsed = merge_into(self.parsed_server_block_no_rest, self.parsed_api_block, self.parsed_api_block)
+        parsed = merge_into(self.server_name, self.parsed_server_block_no_rest, self.parsed_api_block,
+                            self.parsed_api_block)
         self.assertEqual('''server {
     # Emitted by nginx_parse_emit.emit.server_block
     server_name offscale.io;
@@ -170,8 +171,8 @@ server {
         proxy_pass http://127.0.0.1:5000/awesome;
         proxy_redirect off;
     }
-}''', dumps(upsert_by_location('/api0',
-                               merge_into(self.parsed_server_block_no_rest, self.parsed_api_block),
+}''', dumps(upsert_by_location(self.server_name, '/api0',
+                               merge_into(self.server_name, self.parsed_server_block_no_rest, self.parsed_api_block),
                                self.parsed_api_block)))
         self.assertEqual('''server {
     # Emitted by nginx_parse_emit.emit.server_block
@@ -187,8 +188,9 @@ server {
         proxy_pass WRONG_DOMAIN;
         proxy_redirect off;
     }
-}''', dumps(upsert_by_location('/api0',
-                               merge_into(self.parsed_server_block_no_rest, self.parsed_api_block),
+}''', dumps(upsert_by_location(self.server_name, '/api0',
+                               merge_into(self.server_name,
+                                          self.parsed_server_block_no_rest, self.parsed_api_block),
                                loads(
                                    api_proxy_block(location=self.location,
                                                    proxy_pass='WRONG_DOMAIN')))))

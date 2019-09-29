@@ -113,10 +113,10 @@ class TestParseEmit(TestCase):
                                                self.server_name,
                                                self.ssl_certificate,
                                                self.ssl_certificate_key)
-        output1 = merge_into(output0, self.parsed_api_block)
+        output1 = merge_into(self.server_name, output0, self.parsed_api_block)
         for i in xrange(5):
             self.parsed_api_block[0][1][5][1] += str(i)
-            output1 = merge_into(output1, self.parsed_api_block)
+            output1 = merge_into(self.server_name, output1, self.parsed_api_block)
 
         output1_s = dumps(output1)
         self.assertEqual(output1_s.count(self.location), 1)

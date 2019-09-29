@@ -36,23 +36,46 @@ def _copy_or_marshal(block):  # type: (str or list) -> list
     return copy(block) if isinstance(block, list) else loads(block)
 
 
-def merge_into(parent_block, *child_blocks):  # type: (str or list, *list) -> list
+def merge_into(server_name, parent_block, *child_blocks):  # type: (str, str or list, *list) -> list
     parent_block = _copy_or_marshal(parent_block)
-    parent_block[-1][-1] += map(
+
+    server_name_idx = -1
+    indicies = set()
+    break_ = False
+
+    for i, tier in enumerate(parent_block):
+        for j, statement in enumerate(tier):
+            for k, stm in enumerate(statement):
+                if statement[k][0] == 'server_name' and statement[k][1] == server_name:
+                    server_name_idx = i
+                    indicies.add(k)
+                    if break_:
+                        break
+                elif statement[k][0] == 'listen' and statement[k][1].startswith('443'):
+                    break_ = True
+                    if k in indicies:
+                        break
+
+    server_name_idx += 1
+
+    if not len(indicies):
+        return parent_block
+
+    parent_block[-1][server_name_idx] += map(
         lambda child_block: child_block[0] if isinstance(child_block[0], list) else loads(child_block)[0],
         child_blocks
     )
-    parent_block[-1][-1] = list(reversed(uniq(reversed(parent_block[-1][-1]), itemgetter(0))))
+    parent_block[-1][server_name_idx] = list(reversed(uniq(reversed(parent_block[-1][-1]), itemgetter(0))))
 
     return parent_block
 
 
-def merge_into_str(parent_block, *child_blocks):  # type: (str or list, *list) -> str
-    return dumps(merge_into(parent_block, *child_blocks))
+def merge_into_str(server_name, parent_block, *child_blocks):  # type: (str or list, *list) -> str
+    return dumps(merge_into(server_name, parent_block, *child_blocks))
 
 
-def upsert_by_location(location, parent_block, child_block):  # type: (str, str or list, str or list) -> list
-    return merge_into(remove_by_location(_copy_or_marshal(parent_block), location), child_block)
+def upsert_by_location(server_name, location, parent_block, child_block):  # type: (str, str or list, str or list) -> list
+    return merge_into(server_name, remove_by_location(_copy_or_marshal(parent_block), location), child_block)
 
 
 def remove_by_location(parent_block, location):  # type: (list, str) -> list
