@@ -1,6 +1,14 @@
 from __future__ import print_function
 
-from cStringIO import StringIO
+from operator import itemgetter
+from platform import python_version_tuple
+
+if python_version_tuple()[0] == '2':
+    from cStringIO import StringIO
+else:
+    from functools import reduce
+    from io import StringIO
+
 from copy import copy
 from itertools import imap, ifilterfalse
 from os import remove, path
@@ -34,6 +42,8 @@ def merge_into(parent_block, *child_blocks):  # type: (str or list, *list) -> li
         lambda child_block: child_block[0] if isinstance(child_block[0], list) else loads(child_block)[0],
         child_blocks
     )
+    parent_block[-1][-1] = list(reversed(uniq(reversed(parent_block[-1][-1]), itemgetter(0))))
+
     return parent_block
 
 
@@ -126,3 +136,23 @@ def ensure_nginxparser_instance(conf_file):  # type: (str) -> [[[str]]]
             return load(f)
     else:
         return loads(conf_file)
+
+
+def uniq(iterable, key=lambda x: x):
+    """
+    Remove duplicates from an iterable. Preserves order.
+    :type iterable: Iterable[Ord => A]
+    :param iterable: an iterable of objects of any orderable type
+    :type key: Callable[A] -> (Ord => B)
+    :param key: optional argument; by default an item (A) is discarded
+    if another item (B), such that A == B, has already been encountered and taken.
+    If you provide a key, this condition changes to key(A) == key(B); the callable
+    must return orderable objects.
+    """
+
+    # Enumerate the list to restore order lately; reduce the sorted list; restore order
+    def append_unique(acc, item):
+        return acc if key(acc[-1][1]) == key(item[1]) else acc.append(item) or acc
+
+    srt_enum = sorted(enumerate(iterable), key=lambda item: key(item[1]))
+    return [item[1] for item in sorted(reduce(append_unique, srt_enum, [srt_enum[0]]))]
