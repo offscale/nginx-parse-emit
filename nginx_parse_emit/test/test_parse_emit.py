@@ -306,8 +306,8 @@ server {
     # Emitted by nginx_parse_emit.emit.server_block
     server_name foo;
     listen 443;
-}''', dumps(loads(redirect_block(server_name=server_name, port=80)) +
-            loads(server_block(server_name=server_name, listen=443))))
+}''', dumps(loads(redirect_block(server_name=server_name, port='80')) +
+            loads(server_block(server_name=server_name, listen='443'))))
 
 
 if __name__ == '__main__':

@@ -2,12 +2,16 @@ from __future__ import absolute_import, print_function
 
 from functools import partial
 from os import path
+from platform import python_version_tuple
 from unittest import TestCase, main as unittest_main
 
-from nginxparser import loads
-from offutils import pp
+if python_version_tuple()[0] == '2':
+    xrange = range
 
-from nginx_parse_emit.emit import api_proxy_block, server_block, upsert_ssl_cert_to_443_block
+from nginxparser import loads, dumps
+
+from nginx_parse_emit.emit import api_proxy_block, server_block, upsert_ssl_cert_to_443_block, \
+    upsert_redirect_to_443_block
 
 configs_dir = partial(path.join,
                       path.join(path.dirname(path.dirname(__file__)), 'configs'))
@@ -32,14 +36,48 @@ class TestParseEmit(TestCase):
 
         self.nginx = configs_dir('nginx.conf')
         self.two_roots = configs_dir('two_roots.conf')
+        self.one_root = configs_dir('one_root.conf')
 
-    def test_add_security(self):
-        output0 = upsert_ssl_cert_to_443_block(self.two_roots, self.ssl_certificate, self.ssl_certificate_key)
-        output1 = upsert_ssl_cert_to_443_block(output0, self.ssl_certificate, self.ssl_certificate_key)
-        output1 = upsert_ssl_cert_to_443_block(output1, self.ssl_certificate, self.ssl_certificate_key)
+        with open(self.one_root, 'rt') as f:
+            self.one_root_content = f.read()
+
+        with open(self.two_roots, 'rt') as f:
+            self.two_roots_content = f.read()
+
+    def test_add_ssl_cert(self):
+        output0 = upsert_ssl_cert_to_443_block(self.two_roots,
+                                               self.server_name,
+                                               self.ssl_certificate,
+                                               self.ssl_certificate_key)
+        output1 = upsert_ssl_cert_to_443_block(output0,
+                                               self.server_name,
+                                               self.ssl_certificate,
+                                               self.ssl_certificate_key)
+        for _ in xrange(5):
+            output1 = upsert_ssl_cert_to_443_block(output1,
+                                                   self.server_name,
+                                                   self.ssl_certificate,
+                                                   self.ssl_certificate_key)
+
+        output1_s = dumps(output1)
+
         self.assertItemsEqual(output0, output1)
-        pp(output1)
-        # print(dumps(output1))
+        self.assertNotEqual(self.two_roots_content, output1_s)
+        for term in self.ssl_certificate, self.ssl_certificate_key:
+            self.assertIn(term, output1_s)
+
+    def test_add_redirect(self):
+        output0 = upsert_redirect_to_443_block(self.one_root, self.server_name)
+        output1 = upsert_redirect_to_443_block(output0, self.server_name)
+        for _ in xrange(5):
+            output1 = upsert_redirect_to_443_block(output1, self.server_name)
+
+        output1_s = dumps(output1)
+
+        self.assertItemsEqual(output0, output1)
+        self.assertNotEqual(self.one_root_content, dumps(output0))
+        for term in self.server_name, '443':
+            self.assertIn(term, output1_s)
 
 
 if __name__ == '__main__':

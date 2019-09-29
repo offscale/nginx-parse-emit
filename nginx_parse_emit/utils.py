@@ -116,7 +116,7 @@ def upsert_upload(new_conf, name='default', use_sudo=True):
     return put(sio, conf_name, use_sudo=use_sudo)
 
 
-def ensure_nginxparser_instance(conf_file):
+def ensure_nginxparser_instance(conf_file):  # type: (str) -> [[[str]]]
     if isinstance(conf_file, list):
         return conf_file
     elif hasattr(conf_file, 'read'):

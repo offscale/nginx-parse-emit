@@ -1,4 +1,9 @@
+from __future__ import print_function
+
+from collections import namedtuple
 from sys import modules, _getframe
+
+from nginxparser import loads
 
 from nginx_parse_emit.utils import DollarTemplate, ensure_semicolon, _prevent_slash, ensure_nginxparser_instance
 
@@ -94,22 +99,76 @@ def secure_attr(ssl_certificate, ssl_certificate_key, port=None):  # type: (str,
                                                                        ssl_certificate_key=ssl_certificate_key)
 
 
-def upsert_ssl_cert_to_443_block(conf_file, ssl_certificate, ssl_certificate_key):  # type: (str, str, str) -> []
+def upsert_redirect_to_443_block(conf_file, server_name):  # type: (str, str) -> []
+    conf = ensure_nginxparser_instance(conf_file)
+
+    server_name_idx = None
+    found = False
+
+    ListenStmIdx = namedtuple('ListenStmIdx', ('return_stm', 'i', 'j', 'k'))
+    listen_stm_idx = ListenStmIdx(False, None, None, None)
+    for i, tier in enumerate(conf):
+        for j, statement in enumerate(tier):
+            for k, stm in enumerate(statement):
+                if statement[k][0] == 'server_name' and statement[k][1] == server_name:
+                    server_name_idx = i
+                elif statement[k][0] == 'listen':
+                    if not listen_stm_idx.return_stm:
+                        listen_stm_idx = ListenStmIdx(return_stm=False, i=i, j=j, k=k)
+                    if str(statement[k][1]).startswith('443'):
+                        found = True
+                    else:
+                        statement[k][1] = '443'
+                elif statement[k][0] == 'return':
+                    listen_stm_idx = ListenStmIdx(return_stm=True,
+                                                  i=listen_stm_idx.i,
+                                                  j=listen_stm_idx.j,
+                                                  k=listen_stm_idx.k)
+    if listen_stm_idx.return_stm:
+        conf[listen_stm_idx.i][listen_stm_idx.j][listen_stm_idx.k][1] = '80'
+    elif not found and server_name_idx is not None:
+        conf.insert(server_name_idx, loads(redirect_block(
+            server_name=server_name, port='80'
+        ))[0])
+    return conf
+
+
+def upsert_ssl_cert_to_443_block(conf_file, server_name,
+                                 ssl_certificate, ssl_certificate_key):  # type: (str, str, str, str) -> []
     conf = ensure_nginxparser_instance(conf_file)
 
     for i, tier in enumerate(conf):
+        listen_or_server_name_idx = -1
         for j, statement in enumerate(tier):
-            updated = False
-            if ['listen', '443'] in statement:
+            if ['listen', '443'] in statement or ['listen', '443 ssl'] in statement:
+                update = False
+                correct_server_name = False
+                last_ssl_certificate = None
+                last_ssl_certificate_key = None
+
                 for k, stm in enumerate(statement):
+                    if statement[k][0] == 'server_name' and statement[k][1] == server_name:
+                        correct_server_name = True
                     if conf[i][j][k][0] == 'ssl_certificate':
-                        conf[i][j][k][1] = ssl_certificate
-                        updated = True
+                        last_ssl_certificate = i, j, k
+                        update = True
                     elif conf[i][j][k][0] == 'ssl_certificate_key':
-                        conf[i][j][k][1] = ssl_certificate_key
-                        updated = True
-                if not updated and 'ssl_certificate' not in conf[i][j]:
-                    conf[i][j].extend([['ssl_certificate', ssl_certificate],
-                                       ['ssl_certificate_key', ssl_certificate_key]])
+                        last_ssl_certificate_key = i, j, k
+                        update = True
+                    elif conf[i][j][k][0] == 'listen':
+                        listen_or_server_name_idx = k
+                        conf[i][j][k][1] = '443 ssl'
+                    elif conf[i][j][k][0] == 'server_name':
+                        listen_or_server_name_idx = k
+
+                if correct_server_name:
+                    if update:
+                        conf[last_ssl_certificate[0]][last_ssl_certificate[1]][last_ssl_certificate[2]][
+                            1] = ssl_certificate
+                        conf[last_ssl_certificate_key[0]][last_ssl_certificate_key[1]][last_ssl_certificate_key[2]][
+                            1] = ssl_certificate_key
+                    elif not update and 'ssl_certificate' not in conf[i][j]:
+                        conf[i][j].insert(listen_or_server_name_idx + 1, ['ssl_certificate', ssl_certificate])
+                        conf[i][j].insert(listen_or_server_name_idx + 2, ['ssl_certificate_key', ssl_certificate_key])
 
     return conf
