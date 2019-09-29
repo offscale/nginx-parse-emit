@@ -149,7 +149,7 @@ def upsert_ssl_cert_to_443_block(conf_file, server_name,
                 for k, stm in enumerate(statement):
                     if statement[k][0] == 'server_name' and statement[k][1] == server_name:
                         correct_server_name = True
-                    if conf[i][j][k][0] == 'ssl_certificate':
+                    elif conf[i][j][k][0] == 'ssl_certificate':
                         last_ssl_certificate = i, j, k
                         update = True
                     elif conf[i][j][k][0] == 'ssl_certificate_key':
