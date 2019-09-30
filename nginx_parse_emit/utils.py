@@ -61,6 +61,10 @@ def merge_into(server_name, parent_block, *child_blocks):  # type: (str, str or 
     if not len(indicies):
         return parent_block
 
+    length = len(parent_block[-1])
+    if server_name_idx >= length:
+        server_name_idx = length - 1
+
     parent_block[-1][server_name_idx] += map(
         lambda child_block: child_block[0] if isinstance(child_block[0], list) else loads(child_block)[0],
         child_blocks
@@ -74,7 +78,8 @@ def merge_into_str(server_name, parent_block, *child_blocks):  # type: (str or l
     return dumps(merge_into(server_name, parent_block, *child_blocks))
 
 
-def upsert_by_location(server_name, location, parent_block, child_block):  # type: (str, str or list, str or list) -> list
+def upsert_by_location(server_name, location, parent_block,
+                       child_block):  # type: (str, str or list, str or list) -> list
     return merge_into(server_name, remove_by_location(_copy_or_marshal(parent_block), location), child_block)
 
 
@@ -147,6 +152,18 @@ def upsert_upload(new_conf, name='default', use_sudo=True):
     sio = StringIO()
     sio.write(dumps(new_conf))
     return put(sio, conf_name, use_sudo=use_sudo)
+
+
+def get_parsed_remote_conf(conf_name, suffix='nginx', use_sudo=True):  # type: (str, str, bool) -> [str]
+    if not conf_name.endswith('.conf') and not exists(conf_name):
+        conf_name += '.conf'
+    # cStringIO.StringIO, StringIO.StringIO, TemporaryFile, SpooledTemporaryFile all failed :(
+    tempfile = mkstemp(suffix)[1]
+    get(remote_path=conf_name, local_path=tempfile, use_sudo=use_sudo)
+    with open(tempfile, 'rt') as f:
+        conf = load(f)
+    remove(tempfile)
+    return conf
 
 
 def ensure_nginxparser_instance(conf_file):  # type: (str) -> [[[str]]]
