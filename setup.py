@@ -4,6 +4,10 @@ from os import path, listdir
 
 from distutils.sysconfig import get_python_lib
 from setuptools import setup, find_packages
+from sys import version
+
+if version[0] == "2":
+    from itertools import imap as map, ifilter as filter
 
 if __name__ == "__main__":
     package_name = "nginx_parse_emit"
