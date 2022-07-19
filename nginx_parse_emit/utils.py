@@ -1,24 +1,25 @@
 from operator import itemgetter
-from platform import python_version_tuple
-
 from sys import version
 
-if version[0] == "2":
-    from cStringIO import StringIO
+from fabric2 import Connection
+from patchwork.files import exists
 
+if version[0] == "2":
+    try:
+        from cStringIO import StringIO
+    except ImportError:
+        from StringIO import StringIO
 else:
     from functools import reduce
     from io import StringIO
 
 from copy import copy
 from itertools import filterfalse
-from os import remove, path
+from os import path, remove
 from string import Template
 from tempfile import mkstemp
 
-from fabric.contrib.files import exists
-from fabric.operations import get, put
-from nginxparser import loads, dumps, load
+from nginxparser import dumps, load, loads
 
 
 class DollarTemplate(Template):
@@ -169,13 +170,17 @@ def apply_attributes(
     return block
 
 
-def upsert_upload(new_conf, name="default", use_sudo=True):
+def upsert_upload(c, new_conf, name="default", use_sudo=True):
+    """
+    :param c: Connection
+    :type c: ```fabric.connection.Connection```
+    """
     conf_name = "/etc/nginx/sites-enabled/{nginx_conf}".format(nginx_conf=name)
-    if not conf_name.endswith(".conf") and not exists(conf_name):
+    if not conf_name.endswith(".conf") and not exists(c, runner=c.run, path=conf_name):
         conf_name += ".conf"
     # cStringIO.StringIO, StringIO.StringIO, TemporaryFile, SpooledTemporaryFile all failed :(
     tempfile = mkstemp(name)[1]
-    get(remote_path=conf_name, local_path=tempfile, use_sudo=use_sudo)
+    c.get(remote_path=conf_name, local_path=tempfile, use_sudo=use_sudo)
     with open(tempfile, "rt") as f:
         conf = load(f)
     new_conf = new_conf(conf)
@@ -183,17 +188,17 @@ def upsert_upload(new_conf, name="default", use_sudo=True):
 
     sio = StringIO()
     sio.write(dumps(new_conf))
-    return put(sio, conf_name, use_sudo=use_sudo)
+    return c.put(sio, conf_name, use_sudo=use_sudo)
 
 
 def get_parsed_remote_conf(
-    conf_name, suffix="nginx", use_sudo=True
-):  # type: (str, str, bool) -> [str]
-    if not conf_name.endswith(".conf") and not exists(conf_name):
+    c, conf_name, suffix="nginx", use_sudo=True
+):  # type: (Connection, str, str, bool) -> [str]
+    if not conf_name.endswith(".conf") and not exists(c, runner=c.run, path=conf_name):
         conf_name += ".conf"
     # cStringIO.StringIO, StringIO.StringIO, TemporaryFile, SpooledTemporaryFile all failed :(
     tempfile = mkstemp(suffix)[1]
-    get(remote_path=conf_name, local_path=tempfile, use_sudo=use_sudo)
+    c.get(remote_path=conf_name, local_path=tempfile, use_sudo=use_sudo)
     with open(tempfile, "rt") as f:
         conf = load(f)
     remove(tempfile)

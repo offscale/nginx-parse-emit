@@ -1,13 +1,14 @@
 from ast import parse
-from functools import partial
-from os import path, listdir
-
 from distutils.sysconfig import get_python_lib
-from setuptools import setup, find_packages
+from functools import partial
+from os import listdir, path
 from sys import version
 
+from setuptools import find_packages, setup
+
 if version[0] == "2":
-    from itertools import imap as map, ifilter as filter
+    from itertools import ifilter as filter
+    from itertools import imap as map
 
 if __name__ == "__main__":
     package_name = "nginx_parse_emit"

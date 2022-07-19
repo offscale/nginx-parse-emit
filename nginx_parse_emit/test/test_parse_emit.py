@@ -1,14 +1,15 @@
-from unittest import TestCase, main as unittest_main
+from unittest import TestCase
+from unittest import main as unittest_main
 
-from nginxparser import loads, dumps
+from nginxparser import dumps, loads
 
 from nginx_parse_emit.emit import (
     api_proxy_block,
-    server_block,
-    secure_attr,
     redirect_block,
+    secure_attr,
+    server_block,
 )
-from nginx_parse_emit.utils import merge_into, upsert_by_location, apply_attributes
+from nginx_parse_emit.utils import apply_attributes, merge_into, upsert_by_location
 
 
 class TestParseEmit(TestCase):

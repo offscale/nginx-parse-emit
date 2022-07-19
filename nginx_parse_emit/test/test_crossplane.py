@@ -1,9 +1,10 @@
 from functools import partial
 from os import path, remove
 from tempfile import mkstemp
-from unittest import TestCase, main as unittest_main
+from unittest import TestCase
+from unittest import main as unittest_main
 
-from crossplane import parse, build
+from crossplane import build, parse
 from nginxparser import loads
 from offregister_openedx.utils import OTemplate
 

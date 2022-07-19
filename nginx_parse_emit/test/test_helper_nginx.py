@@ -1,20 +1,21 @@
 from functools import partial
 from os import path
 from platform import python_version_tuple
-from unittest import TestCase, main as unittest_main
+from unittest import TestCase
+from unittest import main as unittest_main
 
 from nginx_parse_emit.utils import merge_into
 
 if python_version_tuple()[0] == "2":
     xrange = range
 
-from nginxparser import loads, dumps
+from nginxparser import dumps, loads
 
 from nginx_parse_emit.emit import (
     api_proxy_block,
     server_block,
-    upsert_ssl_cert_to_443_block,
     upsert_redirect_to_443_block,
+    upsert_ssl_cert_to_443_block,
 )
 
 configs_dir = partial(

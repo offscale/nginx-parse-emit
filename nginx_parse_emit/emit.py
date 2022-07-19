@@ -1,13 +1,13 @@
 from collections import namedtuple
-from sys import modules, _getframe
+from sys import _getframe, modules
 
 from nginxparser import loads
 
 from nginx_parse_emit.utils import (
     DollarTemplate,
-    ensure_semicolon,
     _prevent_slash,
     ensure_nginxparser_instance,
+    ensure_semicolon,
 )
 
 _default_comment = "Emitted by {}".format(modules[__name__].__name__)
