@@ -1,5 +1,6 @@
 from operator import itemgetter
 from sys import version
+from typing import Optional, Union
 
 from fabric2 import Connection
 from patchwork.files import exists
@@ -19,7 +20,7 @@ from os import path, remove
 from string import Template
 from tempfile import mkstemp
 
-from nginxparser import dumps, load, loads
+from nginxparser_eb.nginxparser_eb import dumps, load, loads
 
 
 class DollarTemplate(Template):
@@ -27,20 +28,20 @@ class DollarTemplate(Template):
     idpattern = r"[a-z][_a-z0-9]*"
 
 
-def ensure_semicolon(s):  # type: (str) -> str or None
+def ensure_semicolon(s):  # type: (str) -> Optional[str]
     if s is None:
         return s
     s = s.rstrip()
     return s if not len(s) or s[-1] == ";" else "{};".format(s)
 
 
-def _copy_or_marshal(block):  # type: (str or list) -> list
+def _copy_or_marshal(block):  # type: (Union[str, list]) -> list
     return copy(block) if isinstance(block, list) else loads(block)
 
 
 def merge_into(
     server_name, parent_block, *child_blocks
-):  # type: (str, str or list, *list) -> list
+):  # type: (str, Union[str, list], *list) -> list
     parent_block = _copy_or_marshal(parent_block)
 
     server_name_idx = -1
@@ -86,13 +87,13 @@ def merge_into(
 
 def merge_into_str(
     server_name, parent_block, *child_blocks
-):  # type: (str or list, *list) -> str
+):  # type: (Union[str, list], Union[str, list], *list) -> str
     return dumps(merge_into(server_name, parent_block, *child_blocks))
 
 
 def upsert_by_location(
     server_name, location, parent_block, child_block
-):  # type: (str, str or list, str or list) -> list
+):  # type: (str, Union[str, list], Union[str, list], Union[str, list]) -> list
     return merge_into(
         server_name,
         remove_by_location(_copy_or_marshal(parent_block), location),
@@ -129,7 +130,7 @@ def _prevent_slash(s):  # type: (str) -> str
 
 def apply_attributes(
     block, attribute, append=False
-):  # type: (str or list, str or list, bool) -> list
+):  # type: (Union[str, list], Union[str, list], bool) -> list
     block = _copy_or_marshal(block)
     attribute = _copy_or_marshal(attribute)
 
@@ -180,7 +181,7 @@ def upsert_upload(c, new_conf, name="default", use_sudo=True):
         conf_name += ".conf"
     # cStringIO.StringIO, StringIO.StringIO, TemporaryFile, SpooledTemporaryFile all failed :(
     tempfile = mkstemp(name)[1]
-    c.get(remote_path=conf_name, local_path=tempfile, use_sudo=use_sudo)
+    c.get(remote=conf_name, local=tempfile)  # , use_sudo=use_sudo)
     with open(tempfile, "rt") as f:
         conf = load(f)
     new_conf = new_conf(conf)
@@ -188,7 +189,7 @@ def upsert_upload(c, new_conf, name="default", use_sudo=True):
 
     sio = StringIO()
     sio.write(dumps(new_conf))
-    return c.put(sio, conf_name, use_sudo=use_sudo)
+    return c.put(sio, conf_name)  # , use_sudo=use_sudo)
 
 
 def get_parsed_remote_conf(
@@ -198,7 +199,7 @@ def get_parsed_remote_conf(
         conf_name += ".conf"
     # cStringIO.StringIO, StringIO.StringIO, TemporaryFile, SpooledTemporaryFile all failed :(
     tempfile = mkstemp(suffix)[1]
-    c.get(remote_path=conf_name, local_path=tempfile, use_sudo=use_sudo)
+    c.get(remote=conf_name, local=tempfile, use_sudo=use_sudo)
     with open(tempfile, "rt") as f:
         conf = load(f)
     remove(tempfile)
@@ -220,13 +221,18 @@ def ensure_nginxparser_instance(conf_file):  # type: (str) -> [[[str]]]
 def uniq(iterable, key=lambda x: x):
     """
     Remove duplicates from an iterable. Preserves order.
-    :type iterable: Iterable[Ord => A]
+
     :param iterable: an iterable of objects of any orderable type
-    :type key: Callable[A] -> (Ord => B)
+    :type iterable: Iterable[Ord => A]
+
     :param key: optional argument; by default an item (A) is discarded
+    :type key: Callable[A] -> (Ord => B)
+
     if another item (B), such that A == B, has already been encountered and taken.
     If you provide a key, this condition changes to key(A) == key(B); the callable
     must return orderable objects.
+
+    :rtype: ```list```
     """
 
     # Enumerate the list to restore order lately; reduce the sorted list; restore order
@@ -235,3 +241,8 @@ def uniq(iterable, key=lambda x: x):
 
     srt_enum = sorted(enumerate(iterable), key=lambda item: key(item[1]))
     return [item[1] for item in sorted(reduce(append_unique, srt_enum, [srt_enum[0]]))]
+
+
+class OTemplate(Template):
+    delimiter = "_0_"
+    idpattern = r"[a-z][_a-z0-9]*"

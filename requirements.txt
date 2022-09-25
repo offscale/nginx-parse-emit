@@ -1,1 +1,2 @@
-https://api.github.com/repos/fatiherikli/nginxparser/zipball#egg=nginxparser
+https://api.github.com/repos/EnigmaBridge/nginxparser/zipball#egg=nginxparser-eb
+https://github.com/chrisnovakovic/crossplane/archive/refs/heads/analyse-types-map.zip#egg=crossplane

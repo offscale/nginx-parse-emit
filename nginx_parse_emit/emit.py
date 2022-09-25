@@ -1,7 +1,7 @@
 from collections import namedtuple
 from sys import _getframe, modules
 
-from nginxparser import loads
+from nginxparser_eb.nginxparser_eb import loads
 
 from nginx_parse_emit.utils import (
     DollarTemplate,

@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest import main as unittest_main
 
-from nginxparser import dumps, loads
+from nginxparser_eb.nginxparser_eb import dumps, loads
 
 from nginx_parse_emit.emit import (
     api_proxy_block,

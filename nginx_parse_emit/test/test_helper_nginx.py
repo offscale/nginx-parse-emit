@@ -9,7 +9,7 @@ from nginx_parse_emit.utils import merge_into
 if python_version_tuple()[0] == "2":
     xrange = range
 
-from nginxparser import dumps, loads
+from nginxparser_eb.nginxparser_eb import dumps, loads
 
 from nginx_parse_emit.emit import (
     api_proxy_block,

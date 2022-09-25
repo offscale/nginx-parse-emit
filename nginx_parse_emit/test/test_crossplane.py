@@ -5,10 +5,11 @@ from unittest import TestCase
 from unittest import main as unittest_main
 
 from crossplane import build, parse
-from nginxparser import loads
-from offregister_openedx.utils import OTemplate
+from nginxparser_eb.nginxparser_eb import loads
+from offutils import pp
 
 from nginx_parse_emit.emit import api_proxy_block, server_block
+from nginx_parse_emit.utils import OTemplate
 
 configs_dir = partial(
     path.join, path.join(path.dirname(path.dirname(__file__)), "configs")
@@ -37,19 +38,27 @@ class TestParseEmit(TestCase):
         self.ssl_certificate_key = "{d}/privkey.pem".format(d=d)
 
         self.nginx = configs_dir("nginx.conf")
+        self.one_root = configs_dir("one_root.conf")
         self.two_roots = configs_dir("two_roots.conf")
+
+    def test_one_root(self):
+        pp(parse(self.nginx))
+        # with open(self.one_root, "rt") as f0, open(self.two_roots, "rt") as f1, TemporaryFile('wt') as f2:
+        #     pp(parse(f0.read()))
 
     def test_add_security(self):
         temp_file = mkstemp()[1]
-        previous = ""
-        with open(self.nginx, "rt") as f0, open(self.two_roots, "rt") as f1, open(
-            temp_file, "wt"
-        ) as f2:
-            previous = OTemplate(f0.read()).substitute(SERVER_BLOCK=f1.read())
-            f2.write(previous)
-        ## pp(parse(temp_file))
-        self.assertEqual(previous, build(parse(temp_file)))
-        remove(temp_file)
+        try:
+            previous = ""
+            with open(self.nginx, "rt") as f0, open(self.two_roots, "rt") as f1, open(
+                temp_file, "wt"
+            ) as f2:
+                previous = OTemplate(f0.read()).substitute(SERVER_BLOCK=f1.read())
+                f2.write(previous)
+            pp(parse(temp_file))
+            self.assertEqual(previous, build(parse(temp_file)))
+        finally:
+            remove(temp_file)
         # pp(tuple(lex(self.two_roots)))
 
 
